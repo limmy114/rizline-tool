@@ -1,0 +1,1076 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>律动轨迹工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #ffffff;
+            color: #222222;
+            min-height: 100vh;
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            perspective: 1200px;
+        }
+        :root{
+            --bubble-bg: rgba(41,98,255,0.12);
+            --bubble-border: rgba(41,98,255,0.07);
+        }
+        .bubble-bg {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; z-index: 0;
+        }
+        .bubble, .new-bubble {
+            position: absolute; border-radius: 50%;
+            background: var(--bubble-bg);
+            border: 1px solid var(--bubble-border);
+            transition: background 0.42s ease, border-color 0.42s ease;
+        }
+        .bubble-1 { width: 260px; height: 260px; top: 8%; left: 5%; }
+        .bubble-2 { width: 180px; height: 180px; top: 60%; left: 12%; }
+        .bubble-3 { width: 320px; height: 320px; top: 18%; right: 8%; }
+        .bubble-4 { width: 140px; height: 140px; bottom: 12%; right: 15%; }
+        .bubble-5 { width: 200px; height: 200px; bottom: 8%; left: 30%; }
+        .bubble-6 { width: 220px; height: 220px; top: 40%; left: 45%; }
+        .bubble-7 { width: 160px; height: 160px; top: 10%; left: 60%; }
+        @keyframes bubbleWander {
+            0% { transform: translate(0,0); }
+            20% { transform: translate(40px,-30px); }
+            40% { transform: translate(-30px,-50px); }
+            60% { transform: translate(-50px,20px); }
+            80% { transform: translate(20px,40px); }
+            100% { transform: translate(0,0); }
+        }
+        .bubble { animation: bubbleWander 10s infinite ease-in-out; }
+        .bubble-1 { animation-delay: 0s; }
+        .bubble-2 { animation-delay: 1.2s; }
+        .bubble-3 { animation-delay: 2.4s; }
+        .bubble-4 { animation-delay: 3.6s; }
+        .bubble-5 { animation-delay: 4.8s; }
+        .bubble-6 { animation-delay: 6s; }
+        .bubble-7 { animation-delay: 7.2s; }
+        @keyframes newBubblePop {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            60% { transform: translateY(-8vh) scale(1.15); opacity: 1; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .new-bubble {
+            animation: newBubblePop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                       bubbleWander 10s infinite ease-in-out 0.55s;
+        }
+        .page-container {
+            position: fixed; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 10;
+        }
+        .scale-out{
+            animation: scaleOut 0.6s ease forwards;
+        }
+        .scale-in{
+            animation: scaleIn 0.6s ease forwards;
+        }
+        @keyframes scaleOut {
+            0%{transform:scale(1);opacity:1;}
+            100%{transform:scale(1.3);opacity:0;}
+        }
+        @keyframes scaleIn {
+            0%{transform:scale(0.75);opacity:0;}
+            100%{transform:scale(1);opacity:1;}
+        }
+        .title {
+            font-size: 32px; font-weight: 600; letter-spacing: 2px;
+            color: #222; z-index: 25; position: relative; margin-bottom: 60px;
+        }
+        .home-carousel-wrap {
+            position: relative; width: 340px; height: 340px;
+            overflow: hidden; margin: 0 auto;
+        }
+        .round-btn {
+            position: absolute; left: 0; top: 0;
+            width: 340px; height: 340px; border-radius: 50%;
+            border: none; color: #ffffff; font-size: 28px; cursor: pointer;
+            transition: transform 0.42s ease-in, opacity 0.42s ease;
+            pointer-events: none;
+        }
+        .round-btn.center { transform: translateX(0); opacity: 1; pointer-events: auto; }
+        .round-btn.from-left { transform: translateX(-100%); opacity: 0; }
+        .round-btn.from-right { transform: translateX(100%); opacity: 0; }
+        .round-btn.hide-left { transform: translateX(-100%); opacity: 0; }
+        .round-btn.hide-right { transform: translateX(100%); opacity: 0; }
+        .round-btn:active { transform: scale(0.94); }
+
+        .tool-carousel-wrap {
+            position: relative; width:300px;height:300px;
+            overflow:hidden;margin:0 auto;
+        }
+        .tool-round-btn{
+            position:absolute;left:0;top:0;
+            width:300px;height:300px;border-radius:50%;
+            border:none;color:#fff;font-size:24px;cursor:pointer;
+            transition: transform 0.42s ease-in, opacity 0.42s ease;
+            pointer-events:none;
+        }
+        .tool-round-btn.center{transform:translateX(0);opacity:1;pointer-events:auto;}
+        .tool-round-btn.from-left{transform:translateX(-100%);opacity:0;}
+        .tool-round-btn.from-right{transform:translateX(100%);opacity:0;}
+        .tool-round-btn.hide-left{transform:translateX(-100%);opacity:0;}
+        .tool-round-btn.hide-right{transform:translateX(100%);opacity:0;}
+        .tool-round-btn:active{transform:scale(0.94);}
+
+        .progress-dots,
+        .tool-progress-dots {
+            display: none;
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            z-index: 20;
+        }
+        .progress-dots.show { display: flex; }
+        .tool-progress-dots.show { display: flex; }
+
+        .dot {
+            border-radius: 50%;
+            background: #333333;
+            width: 12px;
+            height: 12px;
+            transition: width 0.42s ease, height 0.42s ease;
+        }
+        .dot.large { width: 20px; height: 20px; }
+        .dot.small { width: 12px; height: 12px; }
+
+        .back-circle-btn{
+            position: fixed;
+            left:24px;
+            bottom:36px;
+            width:52px;
+            height:52px;
+            border-radius:50%;
+            background:#2962ff;
+            border:none;
+            color:#fff;
+            font-size:15px;
+            cursor:pointer;
+            z-index:30;
+        }
+        .back-circle-btn:active{transform:scale(0.92);}
+
+        .view {
+            display: none; text-align: center; width: 100%; height: 100%;
+            padding: 20px; overflow-y: auto;
+        }
+        .view.active { display: block; }
+        #viewHome {
+            touch-action: manipulation;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #viewHome.active { display: flex; }
+        #viewHome .title { margin-bottom: 48px; }
+        #viewTool{
+            touch-action: manipulation;
+            display:none;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+        }
+        #viewTool.active{display:flex;}
+        #viewTool .title{margin-bottom:40px;font-size:26px;}
+
+        .calc-card {
+            max-width: 420px; margin: 0 auto; margin-top: 10px;
+            padding: 24px; background: #f7f8fa; border-radius: 16px;
+        }
+        .calc-card h2 { font-size: 20px; margin-bottom: 16px; }
+        .form-item { text-align: left; margin-bottom: 12px; position:relative; }
+        .form-item label { display: block; margin-bottom: 4px; font-size: 14px; }
+        .form-item input, .form-item select, .form-item button {
+            width: 100%; padding: 10px; border: 1px solid #ccc;
+            border-radius: 8px; font-size: 15px;
+        }
+        select:disabled { background: #eeeeee; cursor: not-allowed; }
+        .calc-btn {
+            width: 100%; padding: 12px; background: #2962ff; color: white;
+            border: none; border-radius: 8px; margin-top: 8px; font-size: 16px; cursor: pointer;
+        }
+        .result-area {
+            margin-top: 16px; background: #fff; padding: 12px;
+            border-radius: 8px; text-align: left; font-size: 14px; line-height: 1.8;
+            white-space: pre-wrap;
+        }
+        .tip-note { margin-top: 8px; font-size: 12px; color: #777; }
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+            z-index: 100; display: flex; align-items: center; justify-content: center;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal-box {
+            background: #fff; border-radius: 14px; width: 82%;
+            max-width: 340px; padding: 20px;
+        }
+        .modal-box h3 { text-align: center; margin-bottom: 16px; }
+        .part-btn {
+            width: 100%; padding: 11px; margin: 6px 0; border-radius: 8px;
+            border: 1px solid #bbb; background: #f3f4f6; font-size: 15px; cursor: pointer;
+        }
+        .song-suggest-wrap{
+            position:absolute;
+            left:0;right:0;top:calc(100% + 4px);
+            background:#fff;
+            border:1px solid #ccc;
+            border-radius:8px;
+            max-height:180px;
+            overflow-y:auto;
+            z-index:200;
+            box-shadow:0 2px 8px #00000018;
+        }
+        .song-suggest-item{
+            padding:9px 12px;
+            cursor:pointer;
+            text-align:left;
+        }
+        .song-suggest-item:hover{
+            background:#e8f0ff;
+        }
+        @media (max-width: 480px) {
+            .title { font-size: 24px; margin-bottom: 40px; }
+            .home-carousel-wrap { width: 280px; height: 280px; }
+            .round-btn { width: 280px; height: 280px; font-size: 24px; }
+            .tool-carousel-wrap{width:260px;height:260px;}
+            .tool-round-btn{width:260px;height:260px;font-size:20px;}
+            #viewHome .title { margin-bottom: 36px; }
+            .bubble-1 { width: 180px; height: 180px; }
+            .bubble-2 { width: 130px; height: 130px; }
+            .bubble-3 { width: 230px; height: 230px; }
+            .bubble-4 { width: 100px; height: 100px; }
+            .bubble-5 { width: 150px; height: 150px; }
+            .bubble-6 { width: 160px; height: 160px; }
+            .bubble-7 { width: 120px; height: 120px; }
+            .progress-dots, .tool-progress-dots { bottom: 28px; gap: 20px; }
+            .dot.large { width: 16px; height: 16px; }
+            .dot.small { width: 10px; height: 10px; }
+            .calc-card { padding: 16px; }
+            .back-circle-btn{width:46px;height:46px;left:16px;bottom:28px;}
+        }
+    </style>
+</head>
+<body>
+    <div class="bubble-bg" id="bubbleWrap">
+        <div class="bubble bubble-1"></div>
+        <div class="bubble bubble-2"></div>
+        <div class="bubble bubble-3"></div>
+        <div class="bubble bubble-4"></div>
+        <div class="bubble bubble-5"></div>
+        <div class="bubble bubble-6"></div>
+        <div class="bubble bubble-7"></div>
+    </div>
+
+    <div class="page-container" id="pageWrap">
+        <div class="view active" id="viewHome">
+            <h1 class="title">律动轨迹工具</h1>
+            <div class="home-carousel-wrap" id="carouselWrap">
+                <button class="round-btn center" data-index="0" id="btnCalc" style="background:#2962ff;">成绩计算</button>
+                <button class="round-btn from-right" data-index="1" id="btnTool" style="background:#f5b300;">实用工具</button>
+            </div>
+        </div>
+
+        <div class="view" id="viewTool">
+            <h1 class="title">实用工具</h1>
+            <div class="tool-carousel-wrap" id="toolCarouselWrap">
+                <button class="tool-round-btn center" data-tindex="0" id="toolBtn0" style="background:#2962ff;">今天P什么</button>
+                <button class="tool-round-btn from-right" data-tindex="1" id="toolBtn1" style="background:#f5b300;">谱面查询</button>
+                <button class="tool-round-btn from-right" data-tindex="2" id="toolBtn2" style="background:#8e44ad;">歌曲推荐</button>
+            </div>
+        </div>
+
+        <div class="view" id="viewChart">
+            <div class="calc-card">
+                <h2>谱面信息查询</h2>
+                <div class="form-item">
+                    <label>选择关卡</label>
+                    <button id="openPartModalBtnChart">点击选择歌曲分区</button>
+                    <select id="levelSelectChart" disabled style="margin-top:8px;"></select>
+                </div>
+                <div class="form-item">
+                    <label>选择难度</label>
+                    <select id="diffSelectChart">
+                        <option value="EZ" style="color:#27ae60;">EZ</option>
+                        <option value="HD" style="color:#f39c12;">HD</option>
+                        <option value="IN" style="color:#e74c3c;" selected>IN</option>
+                        <option value="AT" style="color:#8e44ad;">AT</option>
+                    </select>
+                </div>
+                <button class="calc-btn" id="queryChartBtn">查询</button>
+                <div class="result-area" id="chartResultBox">结果将显示在这里</div>
+            </div>
+        </div>
+
+        <div class="view" id="viewCalc">
+            <div class="calc-card">
+                <h2>Rizline RKS计算</h2>
+                <div class="form-item">
+                    <label>输入曲目名称</label>
+                    <input type="text" id="songSearchInput" placeholder="输入歌曲名，会弹出候选">
+                    <div class="song-suggest-wrap" id="songSuggestWrap" style="display:none;"></div>
+                </div>
+                <div class="form-item">
+                    <label>选择难度</label>
+                    <select id="diffSelectCalc">
+                        <option value="EZ" style="color:#27ae60;">EZ</option>
+                        <option value="HD" style="color:#f39c12;">HD</option>
+                        <option value="IN" style="color:#e74c3c;" selected>IN</option>
+                        <option value="AT" style="color:#8e44ad;">AT</option>
+                    </select>
+                </div>
+                <div class="form-item">
+                    <label>本局Hit数</label>
+                    <input type="number" id="inputHit" placeholder="整数">
+                </div>
+                <div class="form-item">
+                    <label>达成率 acc</label>
+                    <input type="number" step="0.01" id="inputAcc" placeholder="如101.50">
+                </div>
+                <div class="form-item">
+                    <label>单次游玩结算分</label>
+                    <input type="number" step="1" id="inputScore" placeholder="结算页面总分">
+                </div>
+                <button class="calc-btn" id="calcBtn">计算RKS</button>
+                <div class="result-area" id="resultBox">结果将显示在这里</div>
+                <div class="tip-note">粗略计算，请以实际为准</div>
+            </div>
+        </div>
+
+        <!-- =========【新增页面：今天P什么】只追加，不改旧代码 ========= -->
+        <div class="view" id="viewRandom">
+            <div class="calc-card">
+                <h2>今天P什么</h2>
+                <button class="calc-btn" id="refreshRandomBtn">刷新曲目</button>
+                <div class="result-area" id="randomResultBox">点击刷新获取随机谱面</div>
+            </div>
+        </div>
+        <!-- =========【新增页面：歌曲推荐】只追加 ========= -->
+        <div class="view" id="viewRecommend">
+            <div class="calc-card">
+                <h2>歌曲推荐</h2>
+                <div class="form-item">
+                    <label>输入你的RKS</label>
+                    <input type="number" step="0.01" id="inputUserRks" placeholder="例如12.60">
+                </div>
+                <button class="calc-btn" id="recommendBtn">获取推荐</button>
+                <div class="result-area" id="recommendResultBox">结果将显示在这里</div>
+            </div>
+        </div>
+    </div>
+
+    <button class="back-circle-btn" id="globalBackBtn">返回</button>
+
+    <div class="modal-overlay hidden" id="partModalOverlay">
+        <div class="modal-box">
+            <h3>选择分区</h3>
+            <button class="part-btn" data-part="disc1">disc1</button>
+            <button class="part-btn" data-part="disc2">disc2</button>
+            <button class="part-btn" data-part="single">single</button>
+            <button class="part-btn" data-part="Ts">Ts</button>
+            <button class="part-btn" id="closePartModal" style="background:#eee;">取消</button>
+        </div>
+    </div>
+
+    <div class="progress-dots" id="dotWrap">
+        <div class="dot large" id="dot0"></div>
+        <div class="dot small" id="dot1"></div>
+    </div>
+    <div class="tool-progress-dots" id="toolDotWrap">
+        <div class="dot large" id="toolDot0"></div>
+        <div class="dot small" id="toolDot1"></div>
+        <div class="dot small" id="toolDot2"></div>
+    </div>
+
+<script>
+const pageWrap = document.getElementById('pageWrap');
+const bubbleWrap = document.getElementById('bubbleWrap');
+const viewHome = document.getElementById('viewHome');
+const viewTool = document.getElementById('viewTool');
+const viewChart = document.getElementById('viewChart');
+const viewCalc = document.getElementById('viewCalc');
+/*=====新增DOM变量=====*/
+const viewRandom = document.getElementById('viewRandom');
+const viewRecommend = document.getElementById('viewRecommend');
+const refreshRandomBtn = document.getElementById('refreshRandomBtn');
+const randomResultBox = document.getElementById('randomResultBox');
+const inputUserRks = document.getElementById('inputUserRks');
+const recommendBtn = document.getElementById('recommendBtn');
+const recommendResultBox = document.getElementById('recommendResultBox');
+
+const btnCalc = document.getElementById('btnCalc');
+const btnTool = document.getElementById('btnTool');
+const globalBackBtn = document.getElementById('globalBackBtn');
+const roundBtns = document.querySelectorAll('.round-btn');
+const dot0 = document.getElementById('dot0');
+const dot1 = document.getElementById('dot1');
+const dotWrap = document.getElementById('dotWrap');
+
+const toolDot0 = document.getElementById('toolDot0');
+const toolDot1 = document.getElementById('toolDot1');
+const toolDot2 = document.getElementById('toolDot2');
+const toolDotWrap = document.getElementById('toolDotWrap');
+
+const toolBtns = document.querySelectorAll('.tool-round-btn');
+let toolIndex = 0;
+let toolAnimating = false;
+let touchToolStartX = 0;
+let viewStack = ["viewHome"];
+
+const toolBubbleColors = [
+    {bg:'rgba(41,98,255,0.12)',border:'rgba(41,98,255,0.07)'},
+    {bg:'rgba(255,200,60,0.12)',border:'rgba(255,200,60,0.07)'},
+    {bg:'rgba(142,68,173,0.11)',border:'rgba(142,68,173,0.06)'}
+];
+const homeBubbleColors = [
+    {bg:'rgba(41,98,255,0.12)',border:'rgba(41,98,255,0.07)'},
+    {bg:'rgba(255,200,60,0.12)',border:'rgba(255,200,60,0.07)'}
+];
+
+let currentBtnIndex = 0;
+let isAnimating = false;
+let currentSelectedPart = null;
+let selectedSongItem = null;
+
+//仅两条测试占位，完整歌单用控制台concat分批载入
+let songAllData = [
+// ===== DISC1 =====
+{"part":"disc1","name":"Abgrund","EZ":{"c":3.5,"mH":78,"mHit":280},"HD":{"c":6,"mH":132,"mHit":409},"IN":{"c":12.3,"mH":155,"mHit":546},"AT":null},
+{"part":"disc1","name":"ArcadeViruZ","EZ":{"c":3,"mH":55,"mHit":251},"HD":{"c":9,"mH":90,"mHit":441},"IN":{"c":13.8,"mH":300,"mHit":947},"AT":null},
+{"part":"disc1","name":"AuthenticGamever","EZ":{"c":3.5,"mH":72,"mHit":340},"HD":{"c":7.5,"mH":137,"mHit":503},"IN":{"c":13.2,"mH":201,"mHit":896},"AT":null},
+{"part":"disc1","name":"竹","EZ":{"c":4,"mH":36,"mHit":299},"HD":{"c":8,"mH":38,"mHit":431},"IN":{"c":14.2,"mH":122,"mHit":1166},"AT":null},
+{"part":"disc1","name":"BRAVEROAD","EZ":null,"HD":{"c":9.5,"mH":289,"mHit":996},"IN":{"c":14.2,"mH":397,"mHit":1213},"AT":{"c":15.1,"mH":564,"mHit":1692}},
+{"part":"disc1","name":"CANDYLAND","EZ":{"c":5.5,"mH":65,"mHit":450},"HD":{"c":10,"mH":169,"mHit":972},"IN":{"c":14.4,"mH":215,"mHit":1293},"AT":null},
+{"part":"disc1","name":"ClockParadox","EZ":{"c":3,"mH":66,"mHit":199},"HD":{"c":6.5,"mH":151,"mHit":463},"IN":{"c":12.5,"mH":280,"mHit":794},"AT":null},
+{"part":"disc1","name":"Contact","EZ":{"c":2.5,"mH":33,"mHit":181},"HD":{"c":8,"mH":86,"mHit":491},"IN":{"c":13.4,"mH":206,"mHit":859},"AT":null},
+{"part":"disc1","name":"Dice20","EZ":{"c":2,"mH":34,"mHit":197},"HD":{"c":6,"mH":69,"mHit":406},"IN":{"c":12.2,"mH":110,"mHit":829},"AT":null},
+{"part":"disc1","name":"DropDown","EZ":{"c":4,"mH":134,"mHit":292},"HD":{"c":8.5,"mH":244,"mHit":633},"IN":{"c":14,"mH":399,"mHit":1108},"AT":null},
+{"part":"disc1","name":"Empire","EZ":{"c":3.5,"mH":48,"mHit":215},"HD":{"c":6.5,"mH":99,"mHit":621},"IN":{"c":13,"mH":202,"mHit":918},"AT":null},
+{"part":"disc1","name":"FORTALICE","EZ":{"c":5,"mH":84,"mHit":537},"HD":{"c":8,"mH":121,"mHit":634},"IN":{"c":12.8,"mH":183,"mHit":987},"AT":null},
+{"part":"disc1","name":"FRIEND","EZ":{"c":3,"mH":86,"mHit":243},"HD":{"c":7,"mH":152,"mHit":529},"IN":{"c":12.2,"mH":234,"mHit":737},"AT":null},
+{"part":"disc1","name":"Gleam","EZ":{"c":1.5,"mH":35,"mHit":178},"HD":{"c":6,"mH":91,"mHit":442},"IN":{"c":12.6,"mH":126,"mHit":810},"AT":null},
+{"part":"disc1","name":"ILLEGALLEGACY","EZ":{"c":5.5,"mH":91,"mHit":332},"HD":{"c":10.5,"mH":160,"mHit":749},"IN":{"c":13.7,"mH":166,"mHit":1030},"AT":null},
+{"part":"disc1","name":"JourneyToTheRainbows","EZ":{"c":3,"mH":51,"mHit":254},"HD":{"c":7,"mH":134,"mHit":632},"IN":{"c":12.9,"mH":170,"mHit":857},"AT":null},
+{"part":"disc1","name":"LavenderLeaffeatLexi","EZ":{"c":2.5,"mH":97,"mHit":465},"HD":{"c":7,"mH":82,"mHit":634},"IN":{"c":12.7,"mH":179,"mHit":1225},"AT":null},
+{"part":"disc1","name":"LEONIDS","EZ":{"c":3,"mH":48,"mHit":237},"HD":{"c":7.5,"mH":105,"mHit":584},"IN":{"c":12.9,"mH":126,"mHit":745},"AT":null},
+{"part":"disc1","name":"LINKxLIN#S","EZ":{"c":2,"mH":64,"mHit":204},"HD":{"c":7,"mH":132,"mHit":431},"IN":{"c":11.3,"mH":188,"mHit":708},"AT":null},
+{"part":"disc1","name":"macrowav","EZ":{"c":3,"mH":62,"mHit":333},"HD":{"c":6,"mH":103,"mHit":409},"IN":{"c":12.7,"mH":158,"mHit":799},"AT":null},
+{"part":"disc1","name":"MidnightFlux","EZ":{"c":3.5,"mH":56,"mHit":414},"HD":{"c":6.5,"mH":220,"mHit":682},"IN":{"c":12.5,"mH":253,"mHit":740},"AT":null},
+{"part":"disc1","name":"MilK","EZ":{"c":3,"mH":79,"mHit":284},"HD":{"c":7,"mH":128,"mHit":415},"IN":{"c":14.4,"mH":203,"mHit":752},"AT":null},
+{"part":"disc1","name":"NOONEYESMAN","EZ":{"c":5,"mH":118,"mHit":367},"HD":{"c":7,"mH":131,"mHit":561},"IN":{"c":12.4,"mH":215,"mHit":929},"AT":null},
+{"part":"disc1","name":"OnAndOn","EZ":{"c":4,"mH":66,"mHit":289},"HD":{"c":7.5,"mH":104,"mHit":403},"IN":{"c":13.1,"mH":192,"mHit":896},"AT":null},
+{"part":"disc1","name":"ParadialResonator","EZ":{"c":3.5,"mH":66,"mHit":375},"HD":{"c":9,"mH":152,"mHit":639},"IN":{"c":13.2,"mH":224,"mHit":840},"AT":null},
+{"part":"disc1","name":"PastelLines","EZ":{"c":1,"mH":29,"mHit":100},"HD":{"c":7,"mH":104,"mHit":380},"IN":{"c":11.4,"mH":163,"mHit":537},"AT":null},
+{"part":"disc1","name":"Polygons","EZ":{"c":1,"mH":66,"mHit":165},"HD":{"c":5,"mH":104,"mHit":417},"IN":{"c":9.5,"mH":149,"mHit":583},"AT":null},
+{"part":"disc1","name":"PowerAttack","EZ":{"c":2,"mH":46,"mHit":331},"HD":{"c":8,"mH":116,"mHit":689},"IN":{"c":12.4,"mH":225,"mHit":931},"AT":null},
+{"part":"disc1","name":"PuppetShow","EZ":{"c":1,"mH":52,"mHit":174},"HD":{"c":5.5,"mH":57,"mHit":274},"IN":{"c":10,"mH":96,"mHit":402},"AT":null},
+{"part":"disc1","name":"RIP","EZ":{"c":3.5,"mH":100,"mHit":287},"HD":{"c":9.5,"mH":219,"mHit":654},"IN":{"c":14,"mH":441,"mHit":1052},"AT":null},
+{"part":"disc1","name":"SakuraFubuki","EZ":{"c":2.5,"mH":44,"mHit":149},"HD":{"c":9,"mH":113,"mHit":527},"IN":{"c":13.9,"mH":184,"mHit":702},"AT":null},
+{"part":"disc1","name":"Shattered","EZ":{"c":3,"mH":73,"mHit":315},"HD":{"c":7.5,"mH":133,"mHit":524},"IN":{"c":12.4,"mH":256,"mHit":966},"AT":null},
+{"part":"disc1","name":"Skyscape","EZ":{"c":1,"mH":33,"mHit":139},"HD":{"c":6.5,"mH":124,"mHit":475},"IN":{"c":11.1,"mH":161,"mHit":644},"AT":null},
+{"part":"disc1","name":"SwingSweetTweeDance","EZ":{"c":2.5,"mH":86,"mHit":280},"HD":{"c":8.5,"mH":138,"mHit":636},"IN":{"c":12.3,"mH":212,"mHit":927},"AT":null},
+{"part":"disc1","name":"Tempest","EZ":{"c":6,"mH":114,"mHit":411},"HD":{"c":10,"mH":236,"mHit":841},"IN":{"c":13.9,"mH":326,"mHit":1089},"AT":null},
+{"part":"disc1","name":"TheNextArcady","EZ":{"c":3,"mH":107,"mHit":211},"HD":{"c":8,"mH":203,"mHit":529},"IN":{"c":12.9,"mH":258,"mHit":766},"AT":null},
+{"part":"disc1","name":"ViciousMockery","EZ":{"c":6.5,"mH":98,"mHit":764},"HD":{"c":10.5,"mH":212,"mHit":1286},"IN":{"c":14.8,"mH":267,"mHit":1826},"AT":null},
+{"part":"disc1","name":"Vrtuaresort","EZ":{"c":3,"mH":70,"mHit":237},"HD":{"c":9,"mH":157,"mHit":675},"IN":{"c":13.8,"mH":220,"mHit":960},"AT":null},
+
+// ===== DISC2 =====
+{"part":"disc2","name":"光","EZ":{"c":1,"mH":94,"mHit":176},"HD":{"c":5,"mH":142,"mHit":357},"IN":{"c":11,"mH":245,"mHit":496},"AT":null},
+{"part":"disc2","name":"Abatement","EZ":{"c":5,"mH":82,"mHit":542},"HD":{"c":10,"mH":141,"mHit":1127},"IN":{"c":14.3,"mH":117,"mHit":1340},"AT":null},
+{"part":"disc2","name":"AbsolutionPulse","EZ":{"c":6.5,"mH":144,"mHit":690},"HD":{"c":10.5,"mH":200,"mHit":1242},"IN":{"c":14.7,"mH":355,"mHit":1793},"AT":null},
+{"part":"disc2","name":"CosmosCapsule","EZ":{"c":2.5,"mH":102,"mHit":419},"HD":{"c":8,"mH":224,"mHit":885},"IN":{"c":13.9,"mH":264,"mHit":1180},"AT":null},
+{"part":"disc2","name":"crystallized","EZ":{"c":6,"mH":192,"mHit":500},"HD":{"c":10,"mH":337,"mHit":1003},"IN":{"c":14.5,"mH":441,"mHit":1231},"AT":null},
+{"part":"disc2","name":"Destr0yer","EZ":{"c":4,"mH":101,"mHit":426},"HD":{"c":9,"mH":144,"mHit":653},"IN":{"c":14.4,"mH":222,"mHit":1126},"AT":null},
+{"part":"disc2","name":"DotLinefeatななひら","EZ":{"c":3.5,"mH":142,"mHit":393},"HD":{"c":7,"mH":236,"mHit":783},"IN":{"c":13.5,"mH":424,"mHit":1093},"AT":null},
+{"part":"disc2","name":"FadeAway","EZ":{"c":1.5,"mH":56,"mHit":212},"HD":{"c":5,"mH":134,"mHit":319},"IN":{"c":10.5,"mH":251,"mHit":693},"AT":null},
+{"part":"disc2","name":"felysfinalremix","EZ":{"c":2.5,"mH":39,"mHit":325},"HD":{"c":7,"mH":48,"mHit":591},"IN":{"c":13.5,"mH":170,"mHit":1063},"AT":null},
+{"part":"disc2","name":"HoukagoOVERDRIVE","EZ":{"c":3,"mH":50,"mHit":267},"HD":{"c":7,"mH":122,"mHit":578},"IN":{"c":13.6,"mH":190,"mHit":886},"AT":null},
+{"part":"disc2","name":"Hyperwave","EZ":{"c":4.5,"mH":84,"mHit":298},"HD":{"c":9,"mH":133,"mHit":505},"IN":{"c":13.1,"mH":266,"mHit":804},"AT":null},
+{"part":"disc2","name":"Idol","EZ":{"c":2,"mH":17,"mHit":190},"HD":{"c":5,"mH":24,"mHit":362},"IN":{"c":12.1,"mH":115,"mHit":799},"AT":null},
+{"part":"disc2","name":"Intruder","EZ":{"c":2,"mH":63,"mHit":295},"HD":{"c":6.5,"mH":138,"mHit":489},"IN":{"c":13.3,"mH":176,"mHit":724},"AT":null},
+{"part":"disc2","name":"LostFuture","EZ":{"c":6,"mH":104,"mHit":412},"HD":{"c":7.5,"mH":176,"mHit":592},"IN":{"c":13.6,"mH":272,"mHit":1157},"AT":null},
+{"part":"disc2","name":"NeverSayGoodbye","EZ":null,"HD":{"c":9.5,"mH":481,"mHit":1201},"IN":{"c":14.3,"mH":625,"mHit":1655},"AT":{"c":15.2,"mH":999,"mHit":2410}},
+{"part":"disc2","name":"Rapture","EZ":{"c":4,"mH":97,"mHit":305},"HD":{"c":7,"mH":167,"mHit":577},"IN":{"c":12.1,"mH":378,"mHit":1058},"AT":null},
+{"part":"disc2","name":"RuleTheWorld","EZ":{"c":2,"mH":72,"mHit":374},"HD":{"c":6.5,"mH":129,"mHit":667},"IN":{"c":12.3,"mH":189,"mHit":1124},"AT":null},
+{"part":"disc2","name":"sAtElLites","EZ":{"c":3,"mH":103,"mHit":344},"HD":{"c":7,"mH":204,"mHit":623},"IN":{"c":12,"mH":333,"mHit":880},"AT":null},
+{"part":"disc2","name":"YellowShiningfeat成田なる","EZ":{"c":1.5,"mH":56,"mHit":284},"HD":{"c":6,"mH":102,"mHit":532},"IN":{"c":12,"mH":141,"mHit":816},"AT":null},
+{"part":"disc2","name":"よさり月蛍澄み昇りて","EZ":{"c":5,"mH":112,"mHit":536},"HD":{"c":9,"mH":165,"mHit":716},"IN":{"c":14,"mH":267,"mHit":1167},"AT":null},
+
+// ===== SINGLE =====
+{"part":"single","name":"8BLUE","EZ":{"c":2,"mH":42,"mHit":227},"HD":{"c":7,"mH":82,"mHit":545},"IN":{"c":12.2,"mH":108,"mHit":624},"AT":null},
+{"part":"single","name":"夢魘coneleganza","EZ":{"c":4,"mH":46,"mHit":266},"HD":{"c":7.5,"mH":109,"mHit":597},"IN":{"c":13.2,"mH":278,"mHit":1228},"AT":null},
+{"part":"single","name":"溶けてゆく","EZ":{"c":2,"mH":77,"mHit":208},"HD":{"c":6,"mH":109,"mHit":337},"IN":{"c":13,"mH":373,"mHit":1172},"AT":null},
+{"part":"single","name":"森奥虚跡","EZ":{"c":5,"mH":125,"mHit":481},"HD":{"c":9.5,"mH":188,"mHit":822},"IN":{"c":14.1,"mH":317,"mHit":1109},"AT":null},
+{"part":"single","name":"驟雨の狭間","EZ":{"c":5,"mH":184,"mHit":587},"HD":{"c":10.5,"mH":420,"mHit":1417},"IN":{"c":14.1,"mH":420,"mHit":1849},"AT":null},
+{"part":"single","name":"ColorfulFlavor","EZ":{"c":6,"mH":81,"mHit":454},"HD":{"c":9.5,"mH":93,"mHit":750},"IN":{"c":13.8,"mH":126,"mHit":1336},"AT":null},
+{"part":"single","name":"Contortion","EZ":{"c":3,"mH":54,"mHit":308},"HD":{"c":7,"mH":100,"mHit":538},"IN":{"c":12.8,"mH":148,"mHit":677},"AT":null},
+{"part":"single","name":"CrushAlcohol","EZ":{"c":4,"mH":62,"mHit":396},"HD":{"c":7,"mH":107,"mHit":670},"IN":{"c":13.6,"mH":215,"mHit":1227},"AT":null},
+{"part":"single","name":"enchantedlove","EZ":{"c":2,"mH":139,"mHit":241},"HD":{"c":5,"mH":237,"mHit":425},"IN":{"c":12.6,"mH":209,"mHit":446},"AT":null},
+{"part":"single","name":"Enneaquest","EZ":{"c":3.5,"mH":86,"mHit":308},"HD":{"c":8.5,"mH":131,"mHit":523},"IN":{"c":12.8,"mH":194,"mHit":818},"AT":null},
+{"part":"single","name":"FrozenHeart","EZ":{"c":3,"mH":88,"mHit":533},"HD":{"c":8.5,"mH":151,"mHit":949},"IN":{"c":13.6,"mH":268,"mHit":1616},"AT":null},
+{"part":"single","name":"GREATGREAT","EZ":{"c":4.5,"mH":44,"mHit":414},"HD":{"c":8,"mH":70,"mHit":613},"IN":{"c":13.2,"mH":118,"mHit":1165},"AT":null},
+{"part":"single","name":"Grimheart","EZ":{"c":1.5,"mH":88,"mHit":221},"HD":{"c":6.5,"mH":98,"mHit":311},"IN":{"c":11.6,"mH":220,"mHit":671},"AT":null},
+{"part":"single","name":"HeadBONKache","EZ":{"c":5,"mH":131,"mHit":459},"HD":{"c":8.5,"mH":180,"mHit":702},"IN":{"c":13.7,"mH":322,"mHit":1218},"AT":null},
+{"part":"single","name":"LifeisPIANO","EZ":{"c":3.5,"mH":82,"mHit":283},"HD":{"c":8,"mH":119,"mHit":439},"IN":{"c":13,"mH":238,"mHit":851},"AT":null},
+{"part":"single","name":"NightTheater","EZ":{"c":3.5,"mH":76,"mHit":223},"HD":{"c":7,"mH":195,"mHit":652},"IN":{"c":13.5,"mH":330,"mHit":1056},"AT":null},
+{"part":"single","name":"NonameRequiem","EZ":{"c":5,"mH":92,"mHit":398},"HD":{"c":9.5,"mH":168,"mHit":848},"IN":{"c":14.8,"mH":275,"mHit":1780},"AT":null},
+{"part":"single","name":"Relieve","EZ":{"c":2,"mH":60,"mHit":265},"HD":{"c":5.5,"mH":96,"mHit":522},"IN":{"c":9,"mH":127,"mHit":776},"AT":null},
+{"part":"single","name":"SuperUniverseKnighthoodRemix","EZ":{"c":6.5,"mH":107,"mHit":540},"HD":{"c":10,"mH":138,"mHit":726},"IN":{"c":14.8,"mH":314,"mHit":1477},"AT":null},
+{"part":"single","name":"TheLastPage","EZ":{"c":2,"mH":88,"mHit":220},"HD":{"c":7,"mH":182,"mHit":425},"IN":{"c":12.6,"mH":262,"mHit":809},"AT":null},
+{"part":"single","name":"WATER","EZ":{"c":2.5,"mH":41,"mHit":221},"HD":{"c":7,"mH":73,"mHit":483},"IN":{"c":12.5,"mH":312,"mHit":1071},"AT":null},
+{"part":"single","name":"あのね","EZ":{"c":2,"mH":106,"mHit":311},"HD":{"c":6,"mH":166,"mHit":532},"IN":{"c":11.8,"mH":201,"mHit":782},"AT":null},
+{"part":"single","name":"インフェルノシティ","EZ":{"c":4.5,"mH":153,"mHit":438},"HD":{"c":7.5,"mH":281,"mHit":684},"IN":{"c":14.1,"mH":467,"mHit":1202},"AT":null},
+
+// ===== TS =====
+{"part":"Ts","name":"419kB","EZ":{"c":2.5,"mH":76,"mHit":317},"HD":{"c":6,"mH":154,"mHit":612},"IN":{"c":13.4,"mH":211,"mHit":914},"AT":null},
+{"part":"Ts","name":"翠社","EZ":{"c":3,"mH":132,"mHit":415},"HD":{"c":9.5,"mH":221,"mHit":798},"IN":{"c":14.7,"mH":359,"mHit":1481},"AT":null},
+{"part":"Ts","name":"地区ShangriLA","EZ":{"c":6.5,"mH":92,"mHit":424},"HD":{"c":10.5,"mH":169,"mHit":822},"IN":{"c":14.7,"mH":259,"mHit":1546},"AT":null},
+{"part":"Ts","name":"漂流","EZ":{"c":3.5,"mH":115,"mHit":288},"HD":{"c":7,"mH":216,"mHit":509},"IN":{"c":13.2,"mH":306,"mHit":829},"AT":null},
+{"part":"Ts","name":"水槽に沈む街","EZ":{"c":2.5,"mH":78,"mHit":397},"HD":{"c":8,"mH":128,"mHit":523},"IN":{"c":13,"mH":219,"mHit":967},"AT":null},
+{"part":"Ts","name":"天地開闢","EZ":{"c":3,"mH":62,"mHit":448},"HD":{"c":7.5,"mH":166,"mHit":941},"IN":{"c":12.7,"mH":159,"mHit":1039},"AT":null},
+{"part":"Ts","name":"天灵灵地灵灵","EZ":{"c":4,"mH":79,"mHit":392},"HD":{"c":7,"mH":123,"mHit":583},"IN":{"c":13.3,"mH":285,"mHit":1341},"AT":null},
+{"part":"Ts","name":"Abiogenesis","EZ":{"c":2,"mH":51,"mHit":159},"HD":{"c":5,"mH":169,"mHit":493},"IN":{"c":11.9,"mH":225,"mHit":671},"AT":null},
+{"part":"Ts","name":"Afterdark","EZ":{"c":2.5,"mH":78,"mHit":320},"HD":{"c":7,"mH":128,"mHit":518},"IN":{"c":12,"mH":186,"mHit":748},"AT":null},
+{"part":"Ts","name":"Alexandrite","EZ":{"c":3,"mH":99,"mHit":410},"HD":{"c":8,"mH":158,"mHit":722},"IN":{"c":13.3,"mH":255,"mHit":1026},"AT":null},
+{"part":"Ts","name":"Alfheimsfaith","EZ":{"c":2.5,"mH":86,"mHit":302},"HD":{"c":7.5,"mH":182,"mHit":622},"IN":{"c":13.7,"mH":277,"mHit":978},"AT":null},
+{"part":"Ts","name":"amethyst","EZ":{"c":2,"mH":48,"mHit":283},"HD":{"c":7,"mH":87,"mHit":501},"IN":{"c":12.8,"mH":188,"mHit":1111},"AT":null},
+{"part":"Ts","name":"Antikythera","EZ":{"c":6,"mH":121,"mHit":880},"HD":{"c":10,"mH":174,"mHit":1425},"IN":{"c":14.7,"mH":300,"mHit":2001},"AT":null},
+{"part":"Ts","name":"Antler","EZ":{"c":2.5,"mH":133,"mHit":311},"HD":{"c":7.5,"mH":226,"mHit":780},"IN":{"c":13.5,"mH":410,"mHit":1605},"AT":null},
+{"part":"Ts","name":"AvataarReincarnationofKalpa","EZ":{"c":4.5,"mH":242,"mHit":388},"HD":{"c":9,"mH":425,"mHit":682},"IN":{"c":14.3,"mH":620,"mHit":1042},"AT":null},
+{"part":"Ts","name":"BringMeBack","EZ":{"c":2.5,"mH":57,"mHit":423},"HD":{"c":8,"mH":91,"mHit":580},"IN":{"c":13.3,"mH":181,"mHit":1301},"AT":null},
+{"part":"Ts","name":"BurstyLollipop","EZ":{"c":3,"mH":71,"mHit":390},"HD":{"c":6.5,"mH":97,"mHit":597},"IN":{"c":13.8,"mH":186,"mHit":955},"AT":null},
+{"part":"Ts","name":"ChangetheGamefeat松永依織","EZ":{"c":4,"mH":64,"mHit":391},"HD":{"c":7,"mH":171,"mHit":698},"IN":{"c":13.7,"mH":201,"mHit":1140},"AT":null},
+{"part":"Ts","name":"Cloudclearand","EZ":{"c":3,"mH":95,"mHit":307},"HD":{"c":6.5,"mH":159,"mHit":590},"IN":{"c":12.7,"mH":170,"mHit":953},"AT":null},
+{"part":"Ts","name":"CometCoaster","EZ":{"c":4,"mH":53,"mHit":304},"HD":{"c":8,"mH":131,"mHit":666},"IN":{"c":13.7,"mH":231,"mHit":1177},"AT":null},
+{"part":"Ts","name":"ConwaysChild","EZ":{"c":5,"mH":85,"mHit":491},"HD":{"c":10,"mH":223,"mHit":1005},"IN":{"c":14.3,"mH":241,"mHit":1260},"AT":null},
+{"part":"Ts","name":"CrazyAudiophile","EZ":{"c":1.5,"mH":63,"mHit":264},"HD":{"c":5.5,"mH":179,"mHit":802},"IN":{"c":12.9,"mH":201,"mHit":995},"AT":null},
+{"part":"Ts","name":"Crimsonate","EZ":{"c":2,"mH":58,"mHit":181},"HD":{"c":6,"mH":125,"mHit":525},"IN":{"c":13.1,"mH":266,"mHit":868},"AT":null},
+{"part":"Ts","name":"DBirth","EZ":{"c":3.5,"mH":78,"mHit":318},"HD":{"c":9,"mH":265,"mHit":769},"IN":{"c":14,"mH":324,"mHit":1052},"AT":null},
+{"part":"Ts","name":"DOMINATOR","EZ":{"c":5.5,"mH":56,"mHit":428},"HD":{"c":8.5,"mH":111,"mHit":704},"IN":{"c":14.5,"mH":253,"mHit":1431},"AT":null},
+{"part":"Ts","name":"Echooveryou","EZ":{"c":1.5,"mH":96,"mHit":273},"HD":{"c":8,"mH":185,"mHit":541},"IN":{"c":11.7,"mH":230,"mHit":676},"AT":null},
+{"part":"Ts","name":"ElectricComet","EZ":{"c":2.5,"mH":67,"mHit":348},"HD":{"c":7.5,"mH":139,"mHit":779},"IN":{"c":13.3,"mH":211,"mHit":1016},"AT":null},
+{"part":"Ts","name":"Encrux","EZ":{"c":3,"mH":82,"mHit":277},"HD":{"c":7.5,"mH":240,"mHit":632},"IN":{"c":12.7,"mH":214,"mHit":741},"AT":null},
+{"part":"Ts","name":"Eschatology","EZ":{"c":5,"mH":200,"mHit":468},"HD":{"c":10,"mH":349,"mHit":795},"IN":{"c":14.2,"mH":413,"mHit":1124},"AT":null},
+{"part":"Ts","name":"FairysCrown","EZ":{"c":2,"mH":45,"mHit":386},"HD":{"c":7,"mH":87,"mHit":752},"IN":{"c":13.4,"mH":148,"mHit":1099},"AT":null},
+{"part":"Ts","name":"FutureDownloader","EZ":{"c":6,"mH":129,"mHit":833},"HD":{"c":10.5,"mH":202,"mHit":1248},"IN":{"c":14.9,"mH":254,"mHit":1789},"AT":null},
+{"part":"Ts","name":"Giselle","EZ":{"c":4,"mH":83,"mHit":311},"HD":{"c":9.5,"mH":223,"mHit":996},"IN":{"c":13.5,"mH":203,"mHit":1088},"AT":null},
+{"part":"Ts","name":"GravesAncientMemories","EZ":{"c":5,"mH":163,"mHit":385},"HD":{"c":9,"mH":362,"mHit":782},"IN":{"c":14.3,"mH":448,"mHit":1164},"AT":null},
+{"part":"Ts","name":"GreatnessEarth","EZ":{"c":4.5,"mH":114,"mHit":479},"HD":{"c":7.5,"mH":150,"mHit":675},"IN":{"c":13.3,"mH":212,"mHit":1143},"AT":null},
+{"part":"Ts","name":"Hullbreaker","EZ":{"c":4,"mH":105,"mHit":446},"HD":{"c":7.5,"mH":158,"mHit":654},"IN":{"c":12.8,"mH":235,"mHit":1075},"AT":null},
+{"part":"Ts","name":"Hydra","EZ":{"c":5,"mH":87,"mHit":433},"HD":{"c":10.5,"mH":202,"mHit":899},"IN":{"c":14.6,"mH":283,"mHit":1317},"AT":null},
+{"part":"Ts","name":"Inevitability","EZ":{"c":5,"mH":130,"mHit":508},"HD":{"c":9.5,"mH":170,"mHit":923},"IN":{"c":14.6,"mH":353,"mHit":1941},"AT":null},
+{"part":"Ts","name":"Kaguya","EZ":{"c":5,"mH":123,"mHit":459},"HD":{"c":8.5,"mH":115,"mHit":742},"IN":{"c":13.7,"mH":247,"mHit":1385},"AT":null},
+{"part":"Ts","name":"LAIGN","EZ":{"c":5.5,"mH":117,"mHit":578},"HD":{"c":10,"mH":175,"mHit":835},"IN":{"c":14.7,"mH":257,"mHit":1303},"AT":null},
+{"part":"Ts","name":"NLAMTA","EZ":{"c":4,"mH":145,"mHit":546},"HD":{"c":8,"mH":122,"mHit":845},"IN":{"c":13.9,"mH":335,"mHit":1625},"AT":null},
+{"part":"Ts","name":"PierrotFixer","EZ":{"c":6,"mH":141,"mHit":867},"HD":{"c":10.5,"mH":189,"mHit":1340},"IN":{"c":14.9,"mH":288,"mHit":2222},"AT":null},
+{"part":"Ts","name":"PlanetariumprodScarlette","EZ":{"c":2,"mH":56,"mHit":274},"HD":{"c":6.5,"mH":78,"mHit":423},"IN":{"c":12.1,"mH":157,"mHit":897},"AT":null},
+{"part":"Ts","name":"Psychometry","EZ":{"c":3.5,"mH":72,"mHit":277},"HD":{"c":7,"mH":137,"mHit":671},"IN":{"c":13.4,"mH":176,"mHit":809},"AT":null},
+{"part":"Ts","name":"QUATTUORUX","EZ":{"c":5.5,"mH":133,"mHit":709},"HD":{"c":9.5,"mH":176,"mHit":952},"IN":{"c":14.5,"mH":301,"mHit":1571},"AT":null},
+{"part":"Ts","name":"RestrictedAccess","EZ":{"c":3,"mH":71,"mHit":338},"HD":{"c":10,"mH":196,"mHit":798},"IN":{"c":14.5,"mH":300,"mHit":1260},"AT":null},
+{"part":"Ts","name":"Revenant","EZ":{"c":5.5,"mH":118,"mHit":548},"HD":{"c":10.5,"mH":159,"mHit":868},"IN":{"c":14.3,"mH":174,"mHit":1175},"AT":null},
+{"part":"Ts","name":"ReversedZenith","EZ":{"c":5,"mH":87,"mHit":467},"HD":{"c":8,"mH":120,"mHit":592},"IN":{"c":12.9,"mH":152,"mHit":969},"AT":null},
+{"part":"Ts","name":"slichertz","EZ":{"c":4.5,"mH":106,"mHit":429},"HD":{"c":8.5,"mH":152,"mHit":636},"IN":{"c":13,"mH":250,"mHit":978},"AT":null},
+{"part":"Ts","name":"SoutenStasKeyKaimix","EZ":{"c":3,"mH":149,"mHit":301},"HD":{"c":7,"mH":240,"mHit":566},"IN":{"c":13.6,"mH":395,"mHit":848},"AT":null},
+{"part":"Ts","name":"SpeedUp","EZ":{"c":4,"mH":122,"mHit":411},"HD":{"c":8,"mH":150,"mHit":534},"IN":{"c":13.2,"mH":233,"mHit":752},"AT":null},
+{"part":"Ts","name":"Spiritworks","EZ":{"c":4,"mH":111,"mHit":338},"HD":{"c":7.5,"mH":211,"mHit":558},"IN":{"c":13.7,"mH":345,"mHit":931},"AT":null},
+{"part":"Ts","name":"Sthenno","EZ":{"c":6,"mH":194,"mHit":521},"HD":{"c":10,"mH":340,"mHit":921},"IN":{"c":14.2,"mH":487,"mHit":1283},"AT":null},
+{"part":"Ts","name":"TalesofDelonix","EZ":{"c":2.5,"mH":56,"mHit":232},"HD":{"c":6,"mH":103,"mHit":394},"IN":{"c":12.7,"mH":318,"mHit":950},"AT":null},
+{"part":"Ts","name":"TurningPOINT","EZ":{"c":3,"mH":76,"mHit":288},"HD":{"c":7.5,"mH":126,"mHit":568},"IN":{"c":13.1,"mH":182,"mHit":826},"AT":null},
+{"part":"Ts","name":"T+VSSHARK","EZ":{"c":5,"mH":101,"mHit":511},"HD":{"c":9,"mH":142,"mHit":972},"IN":{"c":14.4,"mH":207,"mHit":1531},"AT":null},
+{"part":"Ts","name":"ULTRASYNERGYMATRIX","EZ":{"c":2.5,"mH":65,"mHit":389},"HD":{"c":8,"mH":148,"mHit":685},"IN":{"c":14.1,"mH":496,"mHit":1519},"AT":null},
+{"part":"Ts","name":"VaelumirsCall","EZ":{"c":3.5,"mH":128,"mHit":475},"HD":{"c":7.5,"mH":162,"mHit":642},"IN":{"c":12.6,"mH":218,"mHit":953},"AT":null},
+{"part":"Ts","name":"VICIOUS","EZ":{"c":3.5,"mH":60,"mHit":324},"HD":{"c":7,"mH":138,"mHit":659},"IN":{"c":13.1,"mH":183,"mHit":760},"AT":null},
+{"part":"Ts","name":"ZEUS666","EZ":{"c":4.5,"mH":89,"mHit":462},"HD":{"c":8,"mH":165,"mHit":798},"IN":{"c":13.9,"mH":252,"mHit":1483},"AT":null},
+{"part":"Ts","name":"テクメッサ","EZ":{"c":5.5,"mH":160,"mHit":436},"HD":{"c":9.5,"mH":432,"mHit":873},"IN":{"c":14.2,"mH":441,"mHit":1147},"AT":null}
+];const openPartModalBtnChart = document.getElementById('openPartModalBtnChart');
+const levelSelectChart = document.getElementById('levelSelectChart');
+const diffSelectChart = document.getElementById('diffSelectChart');
+const queryChartBtn = document.getElementById('queryChartBtn');
+const chartResultBox = document.getElementById('chartResultBox');
+
+const songSearchInput = document.getElementById('songSearchInput');
+const songSuggestWrap = document.getElementById('songSuggestWrap');
+const diffSelectCalc = document.getElementById('diffSelectCalc');
+const inputHit = document.getElementById('inputHit');
+const inputAcc = document.getElementById('inputAcc');
+const inputScore = document.getElementById('inputScore');
+const calcBtn = document.getElementById('calcBtn');
+const resultBox = document.getElementById('resultBox');
+
+const partModalOverlay = document.getElementById('partModalOverlay');
+const closePartModal = document.getElementById('closePartModal');
+const partBtns = document.querySelectorAll('.part-btn[data-part]');
+
+openPartModalBtnChart.onclick = ()=> partModalOverlay.classList.remove('hidden');
+closePartModal.onclick = ()=> partModalOverlay.classList.add('hidden');
+partBtns.forEach(btn=>{
+    btn.onclick = function(){
+        const p = this.dataset.part;
+        currentSelectedPart = p;
+        const filterList = songAllData.filter(s=>s.part === p);
+        levelSelectChart.innerHTML = "";
+        filterList.forEach((song)=>{
+            const opt = document.createElement('option');
+            opt.value = songAllData.indexOf(song);
+            opt.innerText = song.name;
+            levelSelectChart.appendChild(opt);
+        })
+        levelSelectChart.disabled = false;
+        partModalOverlay.classList.add('hidden');
+    }
+});
+
+function renderSuggest(list){
+    if(!list || list.length ===0){
+        songSuggestWrap.style.display = "none";
+        return;
+    }
+    songSuggestWrap.innerHTML = "";
+    list.forEach(song=>{
+        const div = document.createElement('div');
+        div.className = "song-suggest-item";
+        div.textContent = song.name;
+        div.onclick = ()=>{
+            songSearchInput.value = song.name;
+            selectedSongItem = song;
+            songSuggestWrap.style.display = "none";
+        }
+        songSuggestWrap.appendChild(div);
+    })
+    songSuggestWrap.style.display = "block";
+}
+songSearchInput.addEventListener('input',()=>{
+    const kw = songSearchInput.value.trim().toLowerCase();
+    if(kw.length ===0){
+        songSuggestWrap.style.display = "none";
+        return;
+    }
+    const match = songAllData.filter(s=> s.name.toLowerCase().includes(kw));
+    renderSuggest(match.slice(0,8));
+});
+document.addEventListener('click',(e)=>{
+    if(!songSearchInput.contains(e.target) && !songSuggestWrap.contains(e.target)){
+        songSuggestWrap.style.display="none";
+    }
+});
+
+function setBubbleTheme(mode){
+    switch(mode){
+        case "EZ":
+            document.documentElement.style.setProperty('--bubble-bg', 'rgba(80, 190, 100, 0.11)');
+            document.documentElement.style.setProperty('--bubble-border', 'rgba(80, 190, 100, 0.06)');
+            break;
+        case "HD":
+            document.documentElement.style.setProperty('--bubble-bg', 'rgba(255,200,60,0.12)');
+            document.documentElement.style.setProperty('--bubble-border', 'rgba(255,200,60,0.07)');
+            break;
+        case "IN":
+            document.documentElement.style.setProperty('--bubble-bg', 'rgba(230,80,80,0.11)');
+            document.documentElement.style.setProperty('--bubble-border', 'rgba(230,80,80,0.06)');
+            break;
+        case "AT":
+            document.documentElement.style.setProperty('--bubble-bg', 'rgba(140,80,180,0.11)');
+            document.documentElement.style.setProperty('--bubble-border', 'rgba(140,80,180,0.06)');
+            break;
+    }
+}
+function setHomeBubble(idx){
+    const color = homeBubbleColors[idx];
+    document.documentElement.style.setProperty('--bubble-bg',color.bg);
+    document.documentElement.style.setProperty('--bubble-border',color.border);
+}
+function setToolBubble(idx){
+    const color = toolBubbleColors[idx];
+    document.documentElement.style.setProperty('--bubble-bg',color.bg);
+    document.documentElement.style.setProperty('--bubble-border',color.border);
+}
+function updateDots(idx){
+    if(idx === 0){
+        dot0.className = "dot large";
+        dot1.className = "dot small";
+    }else{
+        dot0.className = "dot small";
+        dot1.className = "dot large";
+    }
+}
+function updateToolDots(idx){
+    toolDot0.className="dot small";
+    toolDot1.className="dot small";
+    toolDot2.className="dot small";
+    if(idx===0) toolDot0.className="dot large";
+    if(idx===1) toolDot1.className="dot large";
+    if(idx===2) toolDot2.className="dot large";
+}
+
+function switchCarousel(direction){
+    if(isAnimating) return;
+    isAnimating = true;
+    const oldIdx = currentBtnIndex;
+    currentBtnIndex = currentBtnIndex === 0 ? 1 : 0;
+    const newIdx = currentBtnIndex;
+    const oldBtn = roundBtns[oldIdx];
+    const newBtn = roundBtns[newIdx];
+    if(oldIdx === 0){
+        oldBtn.className = "round-btn hide-left";
+        newBtn.className = "round-btn from-right";
+        void newBtn.offsetWidth;
+        newBtn.className = "round-btn center";
+    }else{
+        oldBtn.className = "round-btn hide-right";
+        newBtn.className = "round-btn from-left";
+        void newBtn.offsetWidth;
+        newBtn.className = "round-btn center";
+    }
+    updateDots(newIdx);
+    setHomeBubble(newIdx);
+    setTimeout(()=>{ isAnimating = false; },420);
+}
+function switchToolCarousel(dir){
+    if(toolAnimating) return;
+    toolAnimating = true;
+    const old = toolIndex;
+    if(dir === "left") toolIndex = toolIndex -1 <0 ? 2 : toolIndex -1;
+    else toolIndex = toolIndex +1 >2 ?0 : toolIndex +1;
+    const oldBtn = toolBtns[old];
+    const newBtn = toolBtns[toolIndex];
+    if(dir === "left"){
+        oldBtn.className = "tool-round-btn hide-right";
+        newBtn.className = "tool-round-btn from-left";
+    }else{
+        oldBtn.className = "tool-round-btn hide-left";
+        newBtn.className = "tool-round-btn from-right";
+    }
+    void newBtn.offsetWidth;
+    newBtn.className = "tool-round-btn center";
+    setToolBubble(toolIndex);
+    updateToolDots(toolIndex);
+    setTimeout(()=>{ toolAnimating = false; },420);
+}
+
+document.addEventListener('keydown',e=>{
+    if(isAnimating) return;
+    if(viewHome.classList.contains('active')){
+        if(e.key === "ArrowRight") switchCarousel("right");
+        if(e.key === "ArrowLeft") switchCarousel("left");
+    }
+    if(viewTool.classList.contains('active')){
+        if(toolAnimating) return;
+        if(e.key === "ArrowRight") switchToolCarousel("right");
+        if(e.key === "ArrowLeft") switchToolCarousel("left");
+    }
+});
+
+let touchStartX = 0;
+viewHome.addEventListener('touchstart',e=>{if(isAnimating) return; touchStartX = e.touches[0].clientX;},{passive:true});
+viewHome.addEventListener('touchend',e=>{
+    if(isAnimating||!viewHome.classList.contains('active')) return;
+    const endX = e.changedTouches[0].clientX;
+    const diff = endX - touchStartX;
+    if(Math.abs(diff) > 45){
+        if(diff <0) switchCarousel("right");
+        else switchCarousel("left");
+    }
+},{passive:true});
+
+viewTool.addEventListener('touchstart',e=>{if(toolAnimating) return; touchToolStartX = e.touches[0].clientX;},{passive:true});
+viewTool.addEventListener('touchend',e=>{
+    if(toolAnimating||!viewTool.classList.contains('active')) return;
+    const endX = e.changedTouches[0].clientX;
+    const diff = endX - touchToolStartX;
+    if(Math.abs(diff) >45){
+        if(diff <0) switchToolCarousel("right");
+        else switchToolCarousel("left");
+    }
+},{passive:true});
+
+setHomeBubble(0);
+updateDots(0);
+updateToolDots(0);
+
+function clearAllView(){
+    [viewHome, viewTool, viewChart, viewCalc, viewRandom, viewRecommend].forEach(v => v.classList.remove('active','scale-in','scale-out'));
+}
+function clearTempBubbles(){
+    bubbleWrap.querySelectorAll('.new-bubble').forEach(el=>el.remove());
+}
+function spawnNewBubbles(count = 3){
+    const positionPoints = [12,38,64];
+    for(let i = 0; i < count; i++){
+        const el = document.createElement('div');
+        el.classList.add('new-bubble');
+        const size = 70 + Math.random() * 110;
+        el.style.width = size + 'px';
+        el.style.height = size + 'px';
+        el.style.left = positionPoints[i] + '%';
+        el.style.animationDelay = (Math.random() * 0.15) + 's';
+        bubbleWrap.appendChild(el);
+    }
+}
+
+function setPageIndicators(toView){
+    dotWrap.classList.remove('show');
+    toolDotWrap.classList.remove('show');
+    if(toView === viewHome){
+        dotWrap.classList.add('show');
+    }else if(toView === viewTool){
+        toolDotWrap.classList.add('show');
+    }
+}
+
+async function triggerRush(toView, pushStack=true){
+    return new Promise(resolve=>{
+        const activePage = document.querySelector('.view.active');
+        activePage.classList.add('scale-out');
+        setTimeout(()=>{
+            clearAllView();
+            activePage.classList.remove('scale-out');
+            toView.classList.add('active');
+            if(pushStack) viewStack.push(toView.id);
+            setPageIndicators(toView);
+            if(toView === viewHome){
+                globalBackBtn.style.display = "none";
+                clearTempBubbles();
+                setHomeBubble(currentBtnIndex);
+            }else if(toView === viewTool){
+                globalBackBtn.style.display = "block";
+                spawnNewBubbles(3);
+                toolIndex =0; setToolBubble(0); updateToolDots(0);
+                toolBtns.forEach((btn,i)=>{
+                    if(i===0) btn.className="tool-round-btn center";
+                    else btn.className="tool-round-btn from-right";
+                })
+            }else{
+                globalBackBtn.style.display = "block";
+                spawnNewBubbles(3);
+            }
+            if(toView === viewCalc){ setBubbleTheme(diffSelectCalc.value); }
+            if(toView === viewChart || toView === viewRandom || toView === viewRecommend){
+                document.documentElement.style.setProperty('--bubble-bg', 'rgba(41, 98, 255, 0.12)');
+                document.documentElement.style.setProperty('--bubble-border', 'rgba(41, 98, 255, 0.07)');
+            }
+            toView.classList.add('scale-in');
+            setTimeout(()=>{ toView.classList.remove('scale-in'); resolve(); },600);
+        },600);
+    })
+}
+async function goBack(){
+    viewStack.pop();
+    const prevId = viewStack[viewStack.length -1];
+    let prevView;
+    switch(prevId){
+        case "viewHome": prevView=viewHome;break;
+        case "viewTool": prevView=viewTool;break;
+        case "viewCalc": prevView=viewCalc;break;
+        case "viewChart": prevView=viewChart;break;
+        case "viewRandom": prevView=viewTool;break;
+        case "viewRecommend": prevView=viewTool;break;
+        default: prevView=viewHome;
+    }
+    await triggerRush(prevView,false);
+}
+
+btnCalc.addEventListener('click', ()=>triggerRush(viewCalc));
+btnTool.addEventListener('click', ()=>triggerRush(viewTool));
+/*====把原来alert替换成跳转新页面====*/
+document.getElementById('toolBtn0').onclick = ()=>triggerRush(viewRandom);
+document.getElementById('toolBtn1').onclick = ()=>triggerRush(viewChart);
+document.getElementById('toolBtn2').onclick = ()=>triggerRush(viewRecommend);
+globalBackBtn.addEventListener('click',goBack);
+
+diffSelectCalc.addEventListener('change',()=>{
+    if(viewCalc.classList.contains("active")) setBubbleTheme(diffSelectCalc.value);
+});
+
+function getAccRks(acc){
+    if(acc<60) return 0;
+    if(acc<70) return 1.5;
+    if(acc<80) return 3;
+    if(acc<90) return 4.5;
+    if(acc<95) return 6;
+    if(acc<100) return 6.75;
+    if(acc<105) return 7.5;
+    if(acc<110) return 8.25;
+    if(acc<112) return 9;
+    if(acc<114) return 9.3;
+    if(acc<116) return 9.6;
+    if(acc<118) return 9.9;
+    if(acc<120) return 10.2;
+    return 10.5;
+}
+function calcHH(mH, diff){
+    let K;
+    if(diff === "EZ") K = 0.5;
+    else if(diff === "HD") K = 0.9;
+    else K = 0.98;
+    if((1-K) * mH > 5){
+        return Math.ceil(K * mH);
+    }else{
+        return mH - 5;
+    }
+}
+
+queryChartBtn.addEventListener('click', () => {
+    const diff = diffSelectChart.value;
+    const idx = Number(levelSelectChart.value);
+    if(!currentSelectedPart){
+        chartResultBox.innerText = "请先选择歌曲分区！";
+        return;
+    }
+    const song = songAllData[idx];
+    const diffObj = song[diff];
+    if(!diffObj){
+        chartResultBox.innerText = "该歌曲没有此难度！";
+        return;
+    }
+    const hH = calcHH(diffObj.mH, diff);
+    chartResultBox.innerText = 
+`曲名：${song.name}
+难度：${diff}
+定数 C：${diffObj.c.toFixed(2)}
+Riztime 总 Hit (mH)：${diffObj.mH}
+全谱总 Note (mHit)：${diffObj.mHit}
+hH：${hH}`;
+});
+
+calcBtn.addEventListener('click',()=>{
+    const diff = diffSelectCalc.value;
+    const Hit = Number(inputHit.value);
+    const acc = Number(inputAcc.value);
+    const Score = Number(inputScore.value);
+
+    if(!selectedSongItem){
+        resultBox.innerText = "请搜索并点击候选选择一首歌曲！";
+        return;
+    }
+    const diffObj = selectedSongItem[diff];
+    if(!diffObj){
+        resultBox.innerText = "该歌曲没有此难度！";
+        return;
+    }
+    const { c: C, mH, mHit } = diffObj;
+
+    if(isNaN(Hit)||isNaN(acc)||isNaN(Score)){
+        resultBox.innerText = "请填写完整数据";
+        return;
+    }
+    if(mH <= 0 || mHit <= 0){
+        resultBox.innerText = "⚠️该歌曲谱面数据缺失";
+        return;
+    }
+    if(Hit > mHit){
+        resultBox.innerText = "Hit数不能大于总Note数";
+        return;
+    }
+
+    const hH = calcHH(mH, diff);
+    const accrks = getAccRks(acc);
+
+    let hitrks;
+    if(Hit <= mHit / 2){
+        hitrks = 0;
+    }else{
+        hitrks = 10 * C * (2*Hit - mHit)/mHit;
+    }
+
+    const baseScore = (Hit / mHit) * 1000000;
+    const mP = (Score - baseScore) / 100;
+
+    if(mP < 0){
+        resultBox.innerText = "结算分过低，请检查数据";
+        return;
+    }
+    if(mP > mH){
+        resultBox.innerText = "mP超过上限，请检查数据";
+        return;
+    }
+
+    const rizrks = C * Math.min(mP, hH) / hH;
+    const totalRks = accrks + hitrks + rizrks;
+    const maxTotalRks = 10.5 + 10 * C + C;
+    const improveRks = (maxTotalRks - totalRks) / 40;
+
+    resultBox.innerText = 
+`${totalRks.toFixed(3)}
+您当前成绩打满可提升 ${improveRks.toFixed(3)} 点RKS
+理论最大RKS：${maxTotalRks.toFixed(3)}`;
+});
+
+/*=========【新增业务：今天P什么 + 歌曲推荐 函数】=========*/
+function getAllValidEntries(){
+    const pool = [];
+    songAllData.forEach(song=>{
+        ['EZ','HD','IN','AT'].forEach(diffKey=>{
+            const d = song[diffKey];
+            if(d && d.c !== undefined){
+                pool.push({
+                    songName: song.name,
+                    part: song.part,
+                    diff: diffKey,
+                    c: d.c
+                });
+            }
+        });
+    });
+    return pool;
+}
+refreshRandomBtn.onclick = ()=>{
+    const list = getAllValidEntries();
+    if(list.length ===0){
+        randomResultBox.innerText = "暂无谱面数据";
+        return;
+    }
+    const entry = list[Math.floor(Math.random() * list.length)];
+    randomResultBox.innerText =
+`🎲 今日游玩推荐
+歌曲：${entry.songName}
+分区：${entry.part}
+难度：${entry.diff}
+定数：${entry.c.toFixed(2)}`;
+};
+
+recommendBtn.onclick = ()=>{
+    const rksVal = Number(inputUserRks.value);
+    if(isNaN(rksVal)){
+        recommendResultBox.innerText = "请输入有效的RKS数值";
+        return;
+    }
+    const all = getAllValidEntries();
+    let candidates = [];
+    if(rksVal < 10){
+        candidates = all.filter(x=> x.c === 1);
+    }else if(rksVal >= 160){
+        candidates = all;
+    }else{
+        const limitC = rksVal / 10;
+        candidates = all.filter(x=> x.c <= limitC);
+    }
+    if(candidates.length ===0){
+        recommendResultBox.innerText = "没有匹配条件的谱面";
+        return;
+    }
+    const res = candidates[Math.floor(Math.random() * candidates.length)];
+    recommendResultBox.innerText =
+`✨ 为你推荐
+歌曲：${res.songName}
+分区：${res.part}
+难度：${res.diff}
+定数：${res.c.toFixed(2)}`;
+};
+
+setPageIndicators(viewHome);
+globalBackBtn.style.display = "none";
+</script>
+</body>
+</html>
